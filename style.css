@@ -1,0 +1,20 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; }
+
+.topbar{
+  height: 56px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 0 14px;
+  border-bottom: 1px solid #e6e6e6;
+  background: #fff;
+}
+
+.logo{ font-weight: 800; }
+.hint{ color:#666; font-size: 13px; }
+
+#map{
+  width: 100%;
+  height: calc(100vh - 56px);
+}
