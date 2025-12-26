@@ -1,26 +1,9 @@
-<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>대전 맛집 지도</title>
-
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-</head>
-<body>
-  <header class="topbar">
-    <div class="logo">🍜 대전 맛집 지도</div>
-    <div class="hint">마커 클릭 → 상세페이지</div>
-  </header>
-
-  <main>
+<main>
+    <div class="panel">
+      <button id="btnLoad">가게 불러오기</button>
+      <button id="btnReset" class="ghost">좌표 캐시 초기화</button>
+      <span id="status">대전 범위로 고정됨</span>
+    </div>
     <div id="map"></div>
   </main>
-
-  <script src="app.js"></script>
-</body>
-</html>
+  
