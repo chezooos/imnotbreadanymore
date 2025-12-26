@@ -1,193 +1,365 @@
-// ======================
-// 1) 대전 지도 고정 설정
-// ======================
-const daejeonCenter = [36.3504, 127.3845];
+const API = "http://15.164.235.36:3000";
 
-// 대전 대략 경계(조금 넉넉하게)
-const daejeonBounds = L.latLngBounds(
-  L.latLng(36.22, 127.23), // SW
-  L.latLng(36.48, 127.56)  // NE
-);
+const map = L.map('map', { zoomControl: false }).setView([36.3504, 127.3845], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-const map = L.map("map", {
-  center: daejeonCenter,
-  zoom: 12,
-  minZoom: 11,
-  maxZoom: 18,
-  maxBounds: daejeonBounds,
-  maxBoundsViscosity: 1.0, // 밖으로 못 밀고 나가게
-});
+let currentUser = null;   // 이메일
+let authToken = null;     // JWT 토큰
+let currentTab = 'fav';
+let userData = { favorites: [], reviews: [], likedReviews: [] };
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  attribution: "&copy; OpenStreetMap"
-}).addTo(map);
-
-map.fitBounds(daejeonBounds);
-
-// ======================
-// 2) 가게 이름 목록 (스크린샷 기반)
-//    "가게 이름만" 표시
-// ======================
-const STORE_NAMES = [
-  "삼정회관",
-  "옆집에 소머리해장국",
-
-  "황소집",
-  "광천식당",
-  "진로집",
-  "동그라미",
-  "희락반점",
-  "태화장",
-  "성심당",
-  "우동야",
-  "장인약과",
-
-  "치앙마이방콕",
-
-  "벽돌 곱창",
-  "맛찬들",
-  "일당 감자탕",
-  "양가 양미",
-
-  "맛소야",
-  "놀부네집",
-
-  "독도바다",
-
-  "땡큐베리마치",
-  "마들렌 몽심",
-  "소금빵 하레하레",
-  "휘낭시에 정동문화사",
-
-  "태양커피",
-  "향미각",
-  "화목한 우리집",
-  "유성즉석떡볶이",
-
-  "짬뽕 한 그릇",
-  "미세노센세"
+/* ✅ (추가) 기본으로 보여줄 식당들: 예전에 하드코딩해둔 거 여기에 그대로 넣기 */
+const defaultRestaurants = [
+    { name: "삼정회관", area: "선화동", menu: "삼겹살, 양념꽃게장", phone: "042-252-0649", lat: 36.3314, lng: 127.4275 },
+    { name: "소머리해장국", area: "선화동", menu: "소머리해장국", phone: "정보 없음", lat: 36.3310, lng: 127.4270 },
+    { name: "황소집", area: "은행동", menu: "꼼장어, 숯불구이", phone: "042-256-7923", lat: 36.3275, lng: 127.4260 },
+    { name: "광천식당", area: "은행동", menu: "두부두루치기", phone: "042-254-4519", lat: 36.3298, lng: 127.4248 },
+    { name: "진로집", area: "은행동", menu: "두부두루치기", phone: "042-226-0914", lat: 36.3285, lng: 127.4255 },
+    { name: "동그라미", area: "은행동", menu: "꼬마김밥, 우동", phone: "정보 없음", lat: 36.3290, lng: 127.4280 },
+    { name: "희락반점", area: "은행동", menu: "유니짜장", phone: "042-256-0273", lat: 36.3305, lng: 127.4250 },
+    { name: "태화장", area: "은행동", menu: "중식 (화상)", phone: "042-256-1044", lat: 36.3320, lng: 127.4320 },
+    { name: "성심당", area: "은행동", menu: "튀김소보로", phone: "1588-8069", lat: 36.3278, lng: 127.4272 },
+    { name: "성심당 우동야", area: "은행동", menu: "우동, 튀김", phone: "042-220-4131", lat: 36.3278, lng: 127.4272 },
+    { name: "장인약과", area: "은행동", menu: "약과 디저트", phone: "정보 없음", lat: 36.3270, lng: 127.4285 },
+    { name: "땡큐베리머치", area: "은행동", menu: "황치즈 케이크", phone: "042-252-0905", lat: 36.3265, lng: 127.4265 },
+    { name: "치앙마이방콕", area: "소제동", menu: "태국음식", phone: "042-628-7890", lat: 36.3350, lng: 127.4390 },
+    { name: "벽돌 곱창", area: "둔산동", menu: "한우곱창", phone: "042-485-9292", lat: 36.3485, lng: 127.3760 },
+    { name: "맛찬들", area: "둔산동", menu: "숙성 삼겹살", phone: "042-485-6692", lat: 36.3490, lng: 127.3770 },
+    { name: "일당 감자탕", area: "둔산동", menu: "뼈다귀 해장국", phone: "042-472-9449", lat: 36.3505, lng: 127.3790 },
+    { name: "양가 양미", area: "둔산동", menu: "양곱창", phone: "정보 없음", lat: 36.3475, lng: 127.3780 },
+    { name: "하레하레", area: "둔산동", menu: "소금빵", phone: "042-483-1595", lat: 36.3465, lng: 127.3810 },
+    { name: "태양커피", area: "둔산동", menu: "아인슈페너", phone: "정보 없음", lat: 36.3510, lng: 127.3795 },
+    { name: "맛소야", area: "중촌동", menu: "소고기 정육식당", phone: "042-222-2223", lat: 36.3430, lng: 127.4080 },
+    { name: "놀부네집", area: "중촌동", menu: "소고기", phone: "정보 없음", lat: 36.3425, lng: 127.4075 },
+    { name: "독도바다", area: "월평동", menu: "회, 해산물", phone: "042-482-0056", lat: 36.3580, lng: 127.3610 },
+    { name: "짬뽕 한 그릇", area: "탄방동", menu: "짬뽕", phone: "042-488-0054", lat: 36.3440, lng: 127.3880 },
+    { name: "미세노센세", area: "탄방동", menu: "일본식 카레", phone: "042-482-0390", lat: 36.3456, lng: 127.3891 },
+    { name: "몽심", area: "한남대 인근", menu: "마들렌", phone: "정보 없음", lat: 36.3520, lng: 127.4220 },
+    { name: "정동문화사", area: "정동", menu: "휘낭시에", phone: "042-223-5509", lat: 36.3330, lng: 127.4300 },
+    { name: "향미각", area: "중리동", menu: "꼬막짬뽕", phone: "042-626-8252", lat: 36.3620, lng: 127.4250 },
+    { name: "화목한 우리집", area: "유성", menu: "즉석 떡볶이", phone: "042-823-3334", lat: 36.3615, lng: 127.3440 }
 ];
 
-// ======================
-// 3) (중요) 지오코딩: 이름 → 좌표
-//    Nominatim(OpenStreetMap) 사용
-//    - 처음만 느림(요청 제한), 이후 localStorage 캐시로 빠름
-// ======================
-const statusEl = document.getElementById("status");
-const btnLoad = document.getElementById("btnLoad");
-const btnReset = document.getElementById("btnReset");
+let restaurants = [];
+let dbRestaurants = [];   // ✅ (추가) DB에서 불러온 식당
 
-const CACHE_KEY = "daejeon_store_coords_v1";
-let cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+async function loadRestaurants() {
+  try {
+    const res = await fetch(`${API}/restaurants`);
+    dbRestaurants = await res.json();
 
-function saveCache() {
-  localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-}
+    // ✅ (수정) 기본 식당 + DB 식당 합쳐서 표시
+    restaurants = [...defaultRestaurants, ...dbRestaurants];
 
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
-}
-
-async function geocodeOne(name) {
-  // 캐시에 있으면 재사용
-  if (cache[name]) return cache[name];
-
-  // "대전"을 같이 붙여서 검색 정확도 올림
-  const q = encodeURIComponent(`${name} 대전`);
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`;
-
-  const res = await fetch(url, {
-    headers: {
-      "Accept": "application/json"
-    }
-  });
-
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (!data || data.length === 0) return null;
-
-  const lat = Number(data[0].lat);
-  const lon = Number(data[0].lon);
-
-  // 대전 범위 안에 있는 좌표만 인정(엉뚱한 지역 방지)
-  const pt = L.latLng(lat, lon);
-  if (!daejeonBounds.contains(pt)) return null;
-
-  cache[name] = { lat, lon };
-  saveCache();
-  return cache[name];
-}
-
-const markersLayer = L.layerGroup().addTo(map);
-
-function addMarker(name, lat, lon) {
-    function googleMapsUrl(name) {
-        // 구글 지도에서 검색 → 결과 화면에서 리뷰 확인 가능
-        const q = encodeURIComponent(`${name} 대전`);
-        return `https://www.google.com/maps/search/?api=1&query=${q}`;
-      }
-      
-      function addMarker(name, lat, lon) {
-        const marker = L.marker([lat, lon]).addTo(markersLayer);
-      
-        // ✅ 팝업: 가게 이름 + 리뷰 보러가기 버튼
-        marker.bindPopup(`
-          <div style="min-width:180px;">
-            <b>${name}</b><br/>
-            <a href="${googleMapsUrl(name)}" target="_blank" rel="noopener noreferrer"
-               style="display:inline-block;margin-top:8px;padding:6px 10px;border:1px solid #ddd;border-radius:10px;text-decoration:none;">
-              리뷰 보러가기
-            </a>
-          </div>
-        `);
-      
-        // (선택) 툴팁
-        marker.bindTooltip(name, { permanent: false, direction: "top" });
-      }
-      
-}
-
-btnReset?.addEventListener("click", () => {
-  localStorage.removeItem(CACHE_KEY);
-  cache = {};
-  markersLayer.clearLayers();
-  statusEl.textContent = "좌표 캐시 초기화 완료";
-});
-
-btnLoad?.addEventListener("click", async () => {
-  markersLayer.clearLayers();
-
-  const total = STORE_NAMES.length;
-  let ok = 0, fail = 0;
-
-  statusEl.textContent = `불러오는 중... (0/${total})`;
-
-  // Nominatim은 빠르게 몰아치면 막힐 수 있어서 1.1초 간격으로 천천히 요청
-  for (let i = 0; i < total; i++) {
-    const name = STORE_NAMES[i];
-
-    // 캐시 있으면 딜레이 없이 바로
-    if (cache[name]) {
-      addMarker(name, cache[name].lat, cache[name].lon);
-      ok++;
-      statusEl.textContent = `불러오는 중... (${i + 1}/${total}) ✅${ok} ❌${fail}`;
-      continue;
-    }
-
-    const coord = await geocodeOne(name);
-    if (coord) {
-      addMarker(name, coord.lat, coord.lon);
-      ok++;
-    } else {
-      fail++;
-    }
-
-    statusEl.textContent = `불러오는 중... (${i + 1}/${total}) ✅${ok} ❌${fail}`;
-
-    // 요청 간격(중요)
-    await sleep(1100);
+    renderMarkers();
+  } catch (err) {
+    console.error(err);
+    alert("서버에서 맛집 데이터를 불러오지 못했어. (EC2 3000 포트 인바운드/CORS 확인!)");
   }
+}
 
-  statusEl.textContent = `완료 ✅${ok} / ❌${fail} (실패는 이름이 너무 흔하거나 검색 결과가 대전 밖일 때)`;
+loadRestaurants();
+
+// 마커 렌더링
+function renderMarkers() {
+  map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
+  restaurants.forEach(rest => {
+    const lat = Number(rest.lat);
+    const lng = Number(rest.lng);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+    L.marker([lat, lng]).addTo(map).on('click', () => showDetail(rest.name));
+  });
+}
+
+// 파일 선택 시 이름 표시
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'review-image') {
+    const fileName = e.target.files[0]?.name || "";
+    document.getElementById('file-name-preview').innerText = fileName ? `📎 ${fileName}` : "";
+  }
 });
+
+// 상세 페이지 표시
+function showDetail(name) {
+  const rest = restaurants.find(r => r.name === name);
+  if (!rest) return;
+
+  document.getElementById('initial-message').style.display = 'none';
+  document.getElementById('res-detail-content').style.display = 'flex';
+  document.getElementById('res-name').innerText = rest.name;
+  document.getElementById('res-area').innerText = rest.area;
+  document.getElementById('res-menu').innerText = rest.menu;
+  document.getElementById('res-phone').innerText = rest.phone;
+
+  const isFav = userData.favorites.includes(rest.name);
+  const favBtn = document.getElementById('favorite-btn');
+  favBtn.innerText = isFav ? "★" : "☆";
+  favBtn.classList.toggle('active', isFav);
+
+  renderReviews(rest.name);
+  map.flyTo([Number(rest.lat), Number(rest.lng)], 16);
+}
+
+// 리뷰 렌더링
+function renderReviews(resName) {
+  const list = document.getElementById('review-list');
+  list.innerHTML = "";
+  userData.reviews.filter(r => r.resName === resName).forEach(rev => {
+    const item = document.createElement('div');
+    item.className = "review-item";
+    const isLiked = userData.likedReviews.includes(rev.id);
+    item.innerHTML = `
+      <p style="font-size:14px; line-height:1.6; color:#444;">${rev.content}</p>
+      ${rev.img ? `<img src="${rev.img}" class="review-img">` : ""}
+      <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="toggleLike(${rev.id})">❤️ ${isLiked ? '취소' : '좋아요'}</button>
+    `;
+    list.prepend(item);
+  });
+}
+
+// 리뷰 등록 (이미지 포함) - 아직 로컬 저장(너가 원하면 다음 단계에 DB/S3로 붙임)
+function addReview() {
+  if (!currentUser) return alert("로그인 후 이용 가능합니다.");
+  const content = document.getElementById('review-content').value;
+  const resName = document.getElementById('res-name').innerText;
+  const imageFile = document.getElementById('review-image').files[0];
+
+  if (!content) return alert("내용을 입력해주세요!");
+
+  const saveReview = (imgSrc = "") => {
+    userData.reviews.push({ id: Date.now(), resName, content, img: imgSrc });
+    document.getElementById('review-content').value = "";
+    document.getElementById('review-image').value = "";
+    document.getElementById('file-name-preview').innerText = "";
+    showDetail(resName);
+    updateActivityUI();
+  };
+
+  if (imageFile) {
+    const reader = new FileReader();
+    reader.onload = (e) => saveReview(e.target.result);
+    reader.readAsDataURL(imageFile);
+  } else {
+    saveReview();
+  }
+}
+
+// 좋아요 토글(로컬)
+function toggleLike(id) {
+  if (!currentUser) return alert("로그인 후 이용 가능합니다.");
+  const idx = userData.likedReviews.indexOf(id);
+  if (idx > -1) userData.likedReviews.splice(idx, 1);
+  else userData.likedReviews.push(id);
+  showDetail(document.getElementById('res-name').innerText);
+  updateActivityUI();
+}
+
+// 찜 토글(로컬)
+function toggleFavorite() {
+  if (!currentUser) return alert("로그인 후 이용 가능합니다.");
+  const name = document.getElementById('res-name').innerText;
+  const idx = userData.favorites.indexOf(name);
+  if (idx > -1) userData.favorites.splice(idx, 1);
+  else userData.favorites.push(name);
+  showDetail(name);
+  updateActivityUI();
+}
+
+// 내 활동 탭 전환
+function showActivity(type) {
+  currentTab = type;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${type}`).classList.add('active');
+  updateActivityUI();
+}
+
+// 내 활동 UI 업데이트(로컬)
+function updateActivityUI() {
+  const list = document.getElementById('activity-list');
+  list.innerHTML = "";
+
+  if (currentTab === 'fav') {
+    userData.favorites.forEach(f => {
+      const li = document.createElement('li');
+      li.className = "activity-item";
+      li.innerHTML = `📍 <strong>${f}</strong>`;
+      li.onclick = () => showDetail(f);
+      list.appendChild(li);
+    });
+  } else if (currentTab === 'rev') {
+    userData.reviews.forEach(r => {
+      const li = document.createElement('li');
+      li.className = "activity-item";
+      li.innerHTML = `<small style="color:#999">${r.resName}</small><p style="margin-top:5px;">${r.content.substring(0, 20)}...</p>`;
+      li.onclick = () => showDetail(r.resName);
+      list.appendChild(li);
+    });
+  } else if (currentTab === 'like') {
+    userData.likedReviews.forEach(id => {
+      const r = userData.reviews.find(rev => rev.id === id);
+      if (r) {
+        const li = document.createElement('li');
+        li.className = "activity-item";
+        li.innerHTML = `<small style="color:#999">${r.resName}</small><p style="margin-top:5px;">❤️ 좋아요 한 리뷰</p>`;
+        li.onclick = () => showDetail(r.resName);
+        list.appendChild(li);
+      }
+    });
+  }
+}
+
+/* =========================
+   ✅ 여기부터가 “1번(맛집 추가 DB 저장)” 핵심 변경
+   ========================= */
+
+// 맛집 추가 (DB 저장)
+async function addRestaurant() {
+  if (!authToken) return alert("맛집 추가는 로그인 후 이용 가능합니다.");
+
+  const name = document.getElementById('add-n').value.trim();
+  const phone = document.getElementById('add-p').value.trim();
+  const menu = document.getElementById('add-m').value.trim();
+  const address = document.getElementById('add-a').value.trim();
+
+  if (!name || !address) return alert("이름과 지역은 필수입니다!");
+
+  const center = map.getCenter();
+
+  try {
+    const res = await fetch(`${API}/restaurants`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + authToken
+      },
+      body: JSON.stringify({
+        name,
+        area: address,
+        menu: menu || null,
+        phone: phone || null,
+        lat: center.lat,
+        lng: center.lng
+      })
+    });
+
+    if (!res.ok) {
+      const t = await res.text();
+      console.error(t);
+      return alert("맛집 추가 실패! (서버 응답 확인)");
+    }
+
+    closeModal();
+    await loadRestaurants();      // ✅ DB에서 다시 불러오고(기본+DB 합쳐짐) 마커 갱신
+
+    // ✅ 추가 직후: 방금 추가한 가게 위치로 이동 + 상세 열기
+    const added = restaurants.find(r => r.name === name);
+    if (added) {
+      map.flyTo([Number(added.lat), Number(added.lng)], 16);
+      showDetail(added.name);
+    } else {
+      showDetail(name);
+    }
+  } catch (e) {
+    console.error(e);
+    alert("서버 연결 실패(네트워크/포트 확인)");
+  }
+}
+
+/* =========================
+   ✅ 로그인/회원가입을 “진짜 API”로 바꾸는 최소 변경
+   ========================= */
+
+function openModal(type) {
+  const area = document.getElementById('modal-content-area');
+  document.getElementById('modal').style.display = 'block';
+
+  if (type === 'login' || type === 'signup') {
+    area.innerHTML = `
+      <span onclick="closeModal()" style="position:absolute; right:25px; top:25px; cursor:pointer; font-size:24px; color:#aaa;">&times;</span>
+      <h2 style="margin-bottom:30px; font-weight:800;">${type === 'login' ? '로그인' : '회원가입'}</h2>
+
+      <div class="input-wrap"><label>이메일 주소</label><input type="email" id="u-email" placeholder="example@mail.com"></div>
+      <div class="input-wrap"><label>비밀번호</label><input type="password" id="u-pw" placeholder="••••••••"></div>
+
+      ${type === 'signup'
+        ? `<div class="input-wrap"><label>닉네임</label><input type="text" id="u-nick" placeholder="닉네임"></div>`
+        : ``}
+
+      <button class="btn-primary" style="width:100%; height:55px; font-size:16px; margin-top:10px;" onclick="handleAuth('${type}')">확인</button>
+    `;
+  } else if (type === 'addRes') {
+    area.innerHTML = `
+      <span onclick="closeModal()" style="position:absolute; right:25px; top:25px; cursor:pointer; font-size:24px; color:#aaa;">&times;</span>
+      <h2 style="margin-bottom:30px; font-weight:800;">새 맛집 추가</h2>
+      <div class="input-wrap"><label>가게 이름</label><input id="add-n" placeholder="식당명을 입력하세요"></div>
+      <div class="input-wrap"><label>전화번호</label><input id="add-p" placeholder="042-000-0000"></div>
+      <div class="input-wrap"><label>대표 메뉴</label><input id="add-m" placeholder="가장 맛있는 메뉴"></div>
+      <div class="input-wrap"><label>지역</label><input id="add-a" placeholder="예: 둔산동"></div>
+      <button class="btn-primary" style="width:100%; height:55px; font-size:16px; margin-top:10px;" onclick="addRestaurant()">등록하기</button>
+    `;
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+
+// 로그인/회원가입 API 호출
+async function handleAuth(type) {
+  const email = document.getElementById('u-email').value.trim();
+  const password = document.getElementById('u-pw').value.trim();
+  const nickname = type === 'signup' ? document.getElementById('u-nick').value.trim() : null;
+
+  if (!email || !password) return alert("이메일/비밀번호를 입력해주세요.");
+  if (type === 'signup' && !nickname) return alert("닉네임을 입력해주세요.");
+
+  try {
+    if (type === 'signup') {
+      const s = await fetch(`${API}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, nickname })
+      });
+
+      if (!s.ok) {
+        const t = await s.text();
+        console.error(t);
+        return alert("회원가입 실패! (이미 가입된 이메일일 수 있음)");
+      }
+    }
+
+    const r = await fetch(`${API}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+
+    if (!r.ok) {
+      const t = await r.text();
+      console.error(t);
+      return alert("로그인 실패! 이메일/비번 확인");
+    }
+
+    const data = await r.json();
+    authToken = data.token;
+    currentUser = data.user.email;
+
+    document.getElementById('auth-buttons').style.display = 'none';
+    document.getElementById('user-info').style.display = 'flex';
+    document.getElementById('display-user-id').innerText = data.user.nickname || currentUser.split('@')[0];
+    document.getElementById('my-activity').style.display = 'block';
+
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    alert("서버 연결 실패(포트/네트워크 확인)");
+  }
+}
+
+// 검색
+document.getElementById('search-btn').onclick = () => {
+  const q = document.getElementById('search-input').value;
+  const r = restaurants.find(res => res.name.includes(q));
+  if (r) showDetail(r.name);
+  else alert("검색 결과가 없습니다.");
+};

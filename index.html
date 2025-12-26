@@ -1,9 +1,107 @@
-<main>
-    <div class="panel">
-      <button id="btnLoad">가게 불러오기</button>
-      <button id="btnReset" class="ghost">좌표 캐시 초기화</button>
-      <span id="status">대전 범위로 고정됨</span>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>imnotbreadanymore</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+</head>
+<body>
+    <div id="root">
+        <aside id="sidebar">
+            <header>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <!-- <h1>I'm not bread anymore</h1> -->
+                    <p style="font-size:25px; color:#000000; margin-top:5px; font-weight: 1000;">I'm not bread anymore</p>
+                    <button id="add-res-btn" onclick="openModal('addRes')" title="맛집 추가">＋</button>
+                </div>
+                <p style="font-size:15px; color:#999; margin-top:5px; font-weight: 500;">대전은 더이상 빵의 도시가 아니다</p>
+                
+                <div class="auth-group" id="auth-buttons">
+                    <button class="btn-auth" onclick="openModal('login')">로그인</button>
+                    <button class="btn-auth signup" onclick="openModal('signup')">회원가입</button>
+                </div>
+
+                <div id="user-info" style="display: none; justify-content: space-between; align-items: center; margin-top: 15px; background: #fff5f5; padding: 15px; border-radius: 18px; border: 1px solid #ffe3e3;">
+                    <span style="font-size: 14px; font-weight: 700; color: #ff6b6b;">👋 <span id="display-user-id"></span>님, 반가워요!</span>
+                    <button class="btn-auth" style="padding: 6px 12px; flex: none; font-size: 11px; border-radius: 8px;" onclick="location.reload()">로그아웃</button>
+                </div>
+            </header>
+            
+            <div id="sidebar-scroll-area">
+                <div class="search-container">
+                    <div class="search-group">
+                        <input type="text" id="search-input" placeholder="어떤 맛집을 찾으시나요?">
+                        <button id="search-btn" style="font-size: 16px;">🔍</button>
+                    </div>
+                </div>
+
+                <div id="detail-view">
+                    <div id="initial-message" style="text-align: center; padding: 60px 0; color: #cbd5e0;">
+                        <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;">📍</div>
+                        <p style="font-size: 15px; line-height: 1.6; font-weight: 500;">지도의 마커를 클릭하거나<br>가게 이름을 검색해 보세요.</p>
+                    </div>
+                    
+                    <div id="res-detail-content" style="display: none; flex-direction: column;">
+                        <div class="res-header">
+                            <div class="title-row">
+                                <h2 id="res-name">가게 이름</h2>
+                                <button id="favorite-btn" onclick="toggleFavorite()" title="즐겨찾기">☆</button>
+                            </div>
+                            <span id="res-area" class="badge">지역명</span>
+                        </div>
+                        
+                        <div class="res-info-card">
+                            <p style="display: flex; gap: 10px;"><strong style="color: #444; width: 45px;">메뉴</strong> <span id="res-menu" style="color: #666;">-</span></p>
+                            <p style="display: flex; gap: 10px;"><strong style="color: #444; width: 45px;">전화</strong> <span id="res-phone" style="color: #666;">-</span></p>
+                        </div>
+
+                        <div id="review-section" style="margin-top: 10px;">
+                            <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 15px; color: #2d3436;">리뷰 타임라인</h3>
+                            <div class="review-form">
+                                <textarea id="review-content" placeholder="이곳의 솔직한 맛을 기록해주세요."></textarea>
+                                
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f3f5;">
+                                    <label for="review-image" class="file-label">
+                                        <span style="font-size: 18px;">📷</span> 사진 추가
+                                    </label>
+                                    <input type="file" id="review-image" accept="image/*" style="display: none;">
+                                    
+                                    <button class="btn-primary" onclick="addReview()">등록하기</button>
+                                </div>
+                                <div id="file-name-preview" style="font-size: 12px; color: #ff6b6b; margin-top: 8px; font-weight: 600;"></div>
+                            </div>
+                            
+                            <div id="review-list"></div>
+                        </div>
+                    </div>
+
+                    <div id="my-activity" style="display: none; margin-top: 20px;">
+                        <div class="activity-header">
+                            <h3 style="font-size: 18px; font-weight: 800; color: #2d3436;">나의 활동 기록</h3>
+                            <div class="activity-tabs">
+                                <button onclick="showActivity('fav')" class="tab-btn active" id="tab-fav">💖 찜</button>
+                                <button onclick="showActivity('rev')" class="tab-btn" id="tab-rev">✍️ 리뷰</button>
+                                <button onclick="showActivity('like')" class="tab-btn" id="tab-like">👍 좋아요</button>
+                            </div>
+                        </div>
+                        <ul id="activity-list" style="padding: 0;"></ul>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main id="map"></main>
     </div>
-    <div id="map"></div>
-  </main>
-  
+
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modal-content-area">
+            </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
