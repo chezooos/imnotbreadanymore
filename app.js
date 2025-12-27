@@ -315,7 +315,7 @@ function handleAuth(type) {
   if (!email || !password) return alert("이메일/비밀번호를 입력해주세요.");
   if (type === 'signup' && !nickname) return alert("닉네임을 입력해주세요.");
 
-  // 간단한 로컬 인증 (실제 검증 없이 저장만)
+  // 간단한 로컬 인증
   if (type === 'signup') {
     const users = JSON.parse(localStorage.getItem('users') || '{}');
     if (users[email]) {
